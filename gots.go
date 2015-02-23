@@ -70,6 +70,66 @@ func ConvertDate(dateString string) (time.Time, error) {
 	return time.Parse("01/02/2006 15:04:05", dateString)
 }
 
+func IsTimestamp(timestamp string) bool {
+	if match, _ := regexp.MatchString(`^\d{10,10}$`, timestamp); match {
+		return true
+	}
+
+	return false
+}
+
+func HandleTimestamp(timestamp string) {
+	ts, err := ConvertTimestamp(timestamp)
+	if err != nil {
+		fmt.Printf("ERROR: Unable to convert timestamp (E: %v)\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%v <=> %v\n", timestamp, ts)
+	os.Exit(0)
+}
+
+func ParseTimeshiftArgs(timeshift string) []string {
+	shiftRegex, regexErr := regexp.Compile(`(\+|\-)(\d+)(s|m|h|d|M|y)$`)
+	if regexErr != nil {
+		fmt.Printf("ERROR: Unable to create time shift regex (E: %v)\n", regexErr)
+		os.Exit(1)
+	}
+
+	return shiftRegex.FindStringSubmatch(os.Args[1])
+}
+
+func HandleTimeshift(match []string) {
+	value, parseErr := strconv.ParseInt(match[2], 10, 64)
+	if parseErr != nil {
+		fmt.Printf("ERROR: Unable to parse int from string (E: %v)\n", parseErr)
+		os.Exit(1)
+	}
+
+	tsTime, rfcTime := ShiftTime(match[1], match[3], value)
+	fmt.Printf("%v <=> %v\n", tsTime, rfcTime)
+	os.Exit(0)
+}
+
+func IsDateString(date string) bool {
+	if match, _ := regexp.MatchString(`^\d+/\d+/\d+\s+\d+:\d+:\d+$`, date); match {
+		return true
+	}
+
+	return false
+}
+
+func HandleDate(dateArg string) {
+	date, dateErr := ConvertDate(dateArg)
+	if dateErr != nil {
+		fmt.Printf("ERROR: Unable to convert date argument. (%v)\n", dateErr)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%v <=> %v\n", date.Unix(), date.Format(TIME_FORMAT))
+	os.Exit(0)
+}
+
 func main() {
 	if len(os.Args) > 1 {
 		if os.Args[1] == "-h" {
@@ -77,51 +137,18 @@ func main() {
 			os.Exit(0)
 		}
 
-		// Is this a timestamp?
-		if match, _ := regexp.MatchString("^\\d{10,10}$", os.Args[1]); match {
-			ts, err := ConvertTimestamp(os.Args[1])
-			if err != nil {
-				fmt.Printf("ERROR: Unable to convert timestamp. (%v)\n", err)
-				os.Exit(1)
-			}
-
-			fmt.Printf("%v <=> %v\n", os.Args[1], ts)
-			os.Exit(1)
+		if IsTimestamp(os.Args[1]) {
+			HandleTimestamp(os.Args[1])
 		}
 
-		// Is this a timeshift request?
-		shiftRegex, regexErr := regexp.Compile(`(\+|\-)(\d+)(s|m|h|d|M|y)$`)
-		if regexErr != nil {
-			fmt.Printf("ERROR: Unable to create shift regex. (%v)\n", regexErr)
-			os.Exit(1)
+		if tsArgs := ParseTimeshiftArgs(os.Args[1]); len(tsArgs) == 4 {
+			HandleTimeshift(tsArgs)
 		}
 
-		match := shiftRegex.FindStringSubmatch(os.Args[1])
-		if len(match) == 4 {
-			value, parseErr := strconv.ParseInt(match[2], 10, 64)
-			if parseErr != nil {
-				fmt.Printf("ERROR: Unable to parse int from string. (%v)\n", parseErr)
-				os.Exit(1)
-			}
-
-			tsTime, rfcTime := ShiftTime(match[1], match[3], value)
-			fmt.Printf("%v <=> %v\n", tsTime, rfcTime)
-			os.Exit(1)
+		if IsDateString(os.Args[1]) {
+			HandleDate(os.Args[1])
 		}
 
-		// Last chance, maybe a date string?
-		if match, _ := regexp.MatchString(`^\d+/\d+/\d+\s+\d+:\d+:\d+$`, os.Args[1]); match {
-			date, dateErr := ConvertDate(os.Args[1])
-			if dateErr != nil {
-				fmt.Printf("ERROR: Unable to convert date argument. (%v)\n", dateErr)
-				os.Exit(1)
-			}
-
-			fmt.Printf("%v <=> %v\n", date.Unix(), date.Format(TIME_FORMAT))
-			os.Exit(1)
-		}
-
-		// Sorry, nothing else we can do
 		fmt.Println("ERROR: Unable to determine argument; see usage (-h)")
 		os.Exit(1)
 	}
