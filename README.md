@@ -20,3 +20,6 @@ $ gots "01/02/2014 23:59:02"
 ```
 
 Note that in order to convert dates from "string" format (ie. "01/02/2014 01:02:03"), the provided time format must match it exactly.
+
+### Accuracy
+The generated timestamps can be a bit inaccurate - namely because I decided to not meddle with timezones, DST or any other time-related pains. This works for me, but may be a problem for you; if so, please send a PR!
