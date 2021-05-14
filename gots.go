@@ -54,7 +54,13 @@ func ShiftTime(op, measure string, value int64) (string, string) {
 
 func DisplayCurrentTimestamp() {
 	t := time.Now()
-	fmt.Printf("%v <=> %v\n", t.Unix(), t.Format(TIME_FORMAT))
+	fmt.Printf("RFC3339: %v\n", t.Format(time.RFC3339))
+	fmt.Printf("Unix: %v\n", t.Unix())
+	fmt.Printf("UnixNano: %v\n", t.UnixNano())
+	fmt.Println("---------------------")
+	fmt.Printf("RFC3339 (UTC): %v\n", t.UTC().Format(time.RFC3339))
+	fmt.Printf("Unix (UTC): %v\n", t.UTC().Unix())
+	fmt.Printf("UnixNano (UTC): %v\n", t.UTC().UnixNano())
 }
 
 func ConvertTimestamp(ts string) (string, error) {
