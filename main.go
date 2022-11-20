@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-var TIME_FORMAT string = time.UnixDate
+var TimeFormat string = time.UnixDate
 
 func DisplayUsage() {
 	fmt.Println("Usage: ./gots [-h] [date_string|unix_timestamp|[+|-123s|m|h|d|M|y]]")
@@ -25,7 +25,7 @@ func OperatorHelper(op string, val1, val2 int64) int64 {
 	}
 }
 
-// Returns a shifted unix timestamp + rfc time string
+// ShiftTime returns a shifted unix timestamp + rfc time string
 func ShiftTime(op, measure string, value int64) (string, string) {
 	t := time.Now()
 	ts := t.Unix()
@@ -49,11 +49,12 @@ func ShiftTime(op, measure string, value int64) (string, string) {
 
 	seconds := multiplier * value
 	newTs := OperatorHelper(op, ts, seconds)
-	return strconv.FormatInt(newTs, 10), time.Unix(newTs, 0).Format(TIME_FORMAT)
+	return strconv.FormatInt(newTs, 10), time.Unix(newTs, 0).Format(TimeFormat)
 }
 
 func DisplayCurrentTimestamp() {
 	t := time.Now()
+
 	fmt.Printf("RFC3339: %v\n", t.Format(time.RFC3339))
 	fmt.Printf("Unix: %v\n", t.Unix())
 	fmt.Printf("UnixNano: %v\n", t.UnixNano())
@@ -69,7 +70,7 @@ func ConvertTimestamp(ts string) (string, error) {
 		return "", err
 	}
 
-	return time.Unix(i, 0).Format(TIME_FORMAT), nil
+	return time.Unix(i, 0).Format(TimeFormat), nil
 }
 
 func ConvertDate(dateString string) (time.Time, error) {
@@ -102,7 +103,7 @@ func ParseTimeshiftArgs(timeshift string) []string {
 		os.Exit(1)
 	}
 
-	return shiftRegex.FindStringSubmatch(os.Args[1])
+	return shiftRegex.FindStringSubmatch(timeshift)
 }
 
 func HandleTimeshift(match []string) {
@@ -132,7 +133,7 @@ func HandleDate(dateArg string) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("%v <=> %v\n", date.Unix(), date.Format(TIME_FORMAT))
+	fmt.Printf("%v <=> %v\n", date.Unix(), date.Format(TimeFormat))
 	os.Exit(0)
 }
 
