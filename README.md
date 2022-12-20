@@ -4,9 +4,13 @@ gots
 
 In addition to converting between human readable time/date format and UNIX timestamps, it also allows you to increment and decrement time by seconds, minutes, hours, days, months and years.
 
+### Installation
+```
+go install github.com/dselans/gots@latest
+```
+
 ### Usage
 ```
-$ go get github.com/dselans/gots
 $ gots -h
 Usage: ./gots [-h] [date_string|unix_timestamp|[+|-123s|m|h|d|M|y]]
 $ gots
