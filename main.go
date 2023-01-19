@@ -11,7 +11,7 @@ import (
 var TimeFormat = time.UnixDate
 
 func DisplayUsage() {
-	fmt.Println("Usage: ./gots [-h] [date_string|unix_timestamp|[+|-123s|m|h|d|M|y]]")
+	fmt.Println("Usage: ./gots [-h] [date_string|unix_ts|unix_nano_ts] [+-123s|m|h|d|M|y]")
 }
 
 func OperatorHelper(op string, t time.Time, seconds int64) time.Time {
