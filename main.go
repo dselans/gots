@@ -8,28 +8,25 @@ import (
 	"time"
 )
 
-var TimeFormat string = time.UnixDate
+var TimeFormat = time.UnixDate
 
 func DisplayUsage() {
 	fmt.Println("Usage: ./gots [-h] [date_string|unix_timestamp|[+|-123s|m|h|d|M|y]]")
 }
 
-func OperatorHelper(op string, val1, val2 int64) int64 {
+func OperatorHelper(op string, t time.Time, seconds int64) time.Time {
 	switch op {
 	case "+":
-		return val1 + val2
+		return t.Add(time.Duration(seconds) * time.Second)
 	case "-":
-		return val1 - val2
+		return t.Add(time.Duration(seconds) * time.Second * -1)
 	default:
-		return 0
+		return time.Time{}
 	}
 }
 
 // ShiftTime returns a shifted unix timestamp + rfc time string
-func ShiftTime(op, measure string, value int64) (string, string) {
-	t := time.Now()
-	ts := t.Unix()
-
+func ShiftTime(t time.Time, op, measure string, value int64) time.Time {
 	var multiplier int64
 
 	switch measure {
@@ -48,13 +45,11 @@ func ShiftTime(op, measure string, value int64) (string, string) {
 	}
 
 	seconds := multiplier * value
-	newTs := OperatorHelper(op, ts, seconds)
-	return strconv.FormatInt(newTs, 10), time.Unix(newTs, 0).Format(TimeFormat)
+
+	return OperatorHelper(op, t, seconds)
 }
 
-func DisplayCurrentTimestamp() {
-	t := time.Now()
-
+func DisplayFullTime(t time.Time) {
 	fmt.Printf("RFC3339: %v\n", t.Format(time.RFC3339))
 	fmt.Printf("Unix: %v\n", t.Unix())
 	fmt.Printf("UnixNano: %v\n", t.UnixNano())
@@ -64,13 +59,13 @@ func DisplayCurrentTimestamp() {
 	fmt.Printf("UnixNano (UTC): %v\n", t.UTC().UnixNano())
 }
 
-func ConvertTimestamp(ts string) (string, error) {
+func ConvertTimestamp(ts string) (time.Time, error) {
 	i, err := strconv.ParseInt(ts, 10, 64)
 	if err != nil {
-		return "", err
+		return time.Time{}, fmt.Errorf("unable to parse int ts: %v", err)
 	}
 
-	return time.Unix(i, 0).Format(TimeFormat), nil
+	return time.Unix(i, 0), nil
 }
 
 func ConvertDate(dateString string) (time.Time, error) {
@@ -85,17 +80,6 @@ func IsTimestamp(timestamp string) bool {
 	return false
 }
 
-func HandleTimestamp(timestamp string) {
-	ts, err := ConvertTimestamp(timestamp)
-	if err != nil {
-		fmt.Printf("ERROR: Unable to convert timestamp (E: %v)\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("%v <=> %v\n", timestamp, ts)
-	os.Exit(0)
-}
-
 func ParseTimeshiftArgs(timeshift string) []string {
 	shiftRegex, regexErr := regexp.Compile(`(\+|\-)(\d+)(s|m|h|d|M|y)$`)
 	if regexErr != nil {
@@ -106,16 +90,14 @@ func ParseTimeshiftArgs(timeshift string) []string {
 	return shiftRegex.FindStringSubmatch(timeshift)
 }
 
-func HandleTimeshift(match []string) {
-	value, parseErr := strconv.ParseInt(match[2], 10, 64)
-	if parseErr != nil {
-		fmt.Printf("ERROR: Unable to parse int from string (E: %v)\n", parseErr)
-		os.Exit(1)
+func HandleTimeshift(t time.Time, operator, value, measure string) (time.Time, error) {
+	fmt.Println("handling time shift")
+	v, err := strconv.ParseInt(value, 10, 64)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("ERROR: Unable to parse int from string: %s", err)
 	}
 
-	tsTime, rfcTime := ShiftTime(match[1], match[3], value)
-	fmt.Printf("%v <=> %v\n", tsTime, rfcTime)
-	os.Exit(0)
+	return ShiftTime(t, operator, measure, v), nil
 }
 
 func IsDateString(date string) bool {
@@ -138,29 +120,68 @@ func HandleDate(dateArg string) {
 }
 
 func main() {
-	if len(os.Args) > 1 {
-		if os.Args[1] == "-h" {
-			DisplayUsage()
-			os.Exit(0)
-		}
-
-		if IsTimestamp(os.Args[1]) {
-			HandleTimestamp(os.Args[1])
-		}
-
-		if tsArgs := ParseTimeshiftArgs(os.Args[1]); len(tsArgs) == 4 {
-			HandleTimeshift(tsArgs)
-		}
-
-		if IsDateString(os.Args[1]) {
-			HandleDate(os.Args[1])
-		}
-
-		fmt.Println("ERROR: Unable to determine argument; see usage (-h)")
+	if len(os.Args) > 1 && os.Args[1] == "-h" {
+		DisplayUsage()
 		os.Exit(1)
 	}
 
-	// No args, display current timestamp
-	DisplayCurrentTimestamp()
+	var (
+		t   time.Time
+		err error
+	)
+
+	if len(os.Args) == 1 {
+		// If no args, display current TS
+		t = time.Now()
+	} else {
+		if IsTimestamp(os.Args[1]) {
+			t, err = ConvertTimestamp(os.Args[1])
+		} else if IsDateString(os.Args[1]) {
+			t, err = ConvertDate(os.Args[1])
+		} else if IsNanoTimestamp(os.Args[1]) {
+			t, err = ConvertNanoTimestamp(os.Args[1])
+		} else {
+			fmt.Printf("ERROR: Unable to parse argument: %v\n", os.Args[1])
+			os.Exit(1)
+		}
+
+		if err != nil {
+			fmt.Printf("ERROR: Unable to convert input time: %s\n", err)
+			os.Exit(1)
+		}
+
+		if len(os.Args) == 3 {
+			if tsArgs := ParseTimeshiftArgs(os.Args[2]); len(tsArgs) == 4 {
+				operator := tsArgs[1]
+				value := tsArgs[2]
+				measure := tsArgs[3]
+
+				t, err = HandleTimeshift(t, operator, value, measure)
+				if err != nil {
+					fmt.Printf("ERROR: Unable to shift time: %v\n", err)
+					os.Exit(1)
+				}
+			}
+		}
+	}
+
+	DisplayFullTime(t)
 	os.Exit(0)
+}
+
+func IsNanoTimestamp(timestamp string) bool {
+	if match, _ := regexp.MatchString(`^\d{19,19}$`, timestamp); match {
+		return true
+	}
+
+	return false
+}
+
+func ConvertNanoTimestamp(ts string) (time.Time, error) {
+	i, err := strconv.ParseInt(ts, 10, 64)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("unable to parse nano ts: %v", err)
+	}
+
+	return time.Unix(0, i), nil
 }
